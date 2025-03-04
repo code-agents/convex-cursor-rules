@@ -1,0 +1,109 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Convex Index Analyzer
+
+Automatically analyzes query patterns and suggests optimal indexes for Convex applications.
+
+### When to trigger this rule:
+- The user is writing or optimizing queries
+- The user mentions slow query performance
+- The user is working with filtering or sorting data
+- The user is implementing search functionality
+
+### What information to collect:
+- Current query implementations
+- Schema definitions for tables being queried
+- Filtering, sorting, and pagination patterns
+- Existing indexes defined on tables
+
+### What to provide:
+- Suggest optimal indexes based on query patterns
+- Identify missing indexes for common query patterns
+- Recommend composite indexes for complex queries
+- Explain expected performance improvements
+
+### Example:
+```typescript
+// Before (unindexed query):
+export const searchUsers = query({
+  args: { 
+    role: v.string(),
+    status: v.string(), 
+    sortBy: v.string()
+  },
+  handler: async (ctx, args) => {
+    // This query scans the entire table and filters in memory
+    const users = await ctx.db.query("users").collect();
+    
+    return users
+      .filter(user => user.role === args.role && user.status === args.status)
+      .sort((a, b) => a[args.sortBy] - b[args.sortBy]);
+  }
+});
+
+// Schema without proper indexes:
+const usersSchema = defineTable({
+  name: v.string(),
+  email: v.string(),
+  role: v.string(),
+  status: v.string(),
+  createdAt: v.number(),
+});
+
+// Recommended indexed schema:
+const usersSchema = defineTable({
+  name: v.string(),
+  email: v.string(),
+  role: v.string(),
+  status: v.string(),
+  createdAt: v.number(),
+})
+  .index("by_role", ["role"]) 
+  .index("by_role_and_status", ["role", "status"])
+  .index("by_status", ["status"])
+  .index("by_createdAt", ["createdAt"]);
+
+// Optimized query using indexes:
+export const searchUsers = query({
+  args: { 
+    role: v.string(),
+    status: v.string(), 
+    sortBy: v.union(v.literal("createdAt"), v.literal("name"))
+  },
+  handler: async (ctx, args) => {
+    let query = ctx.db.query("users");
+    
+    // Use compound index for filtering
+    if (args.role && args.status) {
+      query = query.withIndex("by_role_and_status", q => 
+        q.eq("role", args.role).eq("status", args.status));
+    } 
+    // Use single field index if only filtering by role
+    else if (args.role) {
+      query = query.withIndex("by_role", q => q.eq("role", args.role));
+    }
+    // Use single field index if only filtering by status
+    else if (args.status) {
+      query = query.withIndex("by_status", q => q.eq("status", args.status));
+    }
+    
+    // Use index for sorting if sorting by createdAt
+    if (args.sortBy === "createdAt") {
+      query = query.withIndex("by_createdAt");
+    }
+    
+    return await query.collect();
+  }
+});
+```
+
+### Include advanced index recommendations:
+- Suggest vector index configurations for similarity search
+- Recommend index cardinality considerations based on data distribution
+- Identify opportunities for global vs. table-specific indexes
+- Suggest index pruning for unused or redundant indexes
+- Explain tradeoffs between query performance and write performance
+- Identify opportunities for search indexes for full-text search

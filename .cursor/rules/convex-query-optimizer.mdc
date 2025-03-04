@@ -1,0 +1,55 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Convex Query Optimizer
+
+Analyzes Convex queries and suggests optimizations for better performance.
+
+### When to trigger this rule:
+- The user is working on query functions in Convex
+- The user mentions slow queries
+- The user is adding pagination or filtering to queries
+
+### What information to collect:
+- Existing query implementation
+- Schema definitions for tables being queried
+- Any indexes defined in the schema
+- Access patterns (how data is being queried)
+
+### What to provide:
+- Suggest query optimizations for better performance
+- Recommend appropriate indexes for common query patterns
+- Suggest pagination strategies for large result sets
+- Identify potential N+1 query problems and suggest solutions
+
+### Example:
+```typescript
+// Before (inefficient query):
+export const getPostsByAuthor = query({
+  args: { authorId: v.id("users") },
+  handler: async (ctx, args) => {
+    const posts = await ctx.db.query("posts").collect();
+    return posts.filter(post => post.authorId === args.authorId);
+  }
+});
+
+// After optimization:
+export const getPostsByAuthor = query({
+  args: { authorId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("posts")
+      .withIndex("by_author", q => q.eq("authorId", args.authorId))
+      .order("desc")
+      .collect();
+  }
+});
+```
+
+### Include additional recommendations:
+- Suggest creating indexes for common query patterns
+- Recommend caching strategies for frequently accessed data
+- Identify opportunities for using Convex's pagination helpers
+- Suggest breaking down complex queries into smaller, more efficient ones

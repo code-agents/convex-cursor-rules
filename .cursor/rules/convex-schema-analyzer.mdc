@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Convex Schema Analyzer
+
+Analyzes existing database documents and suggests schema improvements.
+
+### When to trigger this rule:
+- The user requests schema validation
+- The user is working with Convex schema files
+- The user mentions inconsistent data types
+
+### What information to collect:
+- Existing schema definitions (in convex/schema.ts or similar files)
+- Sample document data from tables
+- Any type inconsistencies in the database
+
+### What to provide:
+- Suggest schema improvements based on actual data stored
+- Identify missing fields or inconsistent types
+- Suggest proper validation rules for fields
+- Recommend appropriate Convex schema types (v.string(), v.number(), etc.)
+
+### Example:
+```typescript
+// Before: 
+const userSchema = defineSchema({
+  users: defineTable({
+    name: v.string(),
+    age: v.number(),
+  })
+});
+
+// After analyzing DB content, recommend:
+const userSchema = defineSchema({
+  users: defineTable({
+    name: v.string(),
+    age: v.number(),
+    email: v.optional(v.string()), // Found in 80% of documents
+    lastLogin: v.optional(v.number()), // Timestamp found in 65% of docs
+    preferences: v.optional(v.array(v.string())), // Detected array type
+  })
+});
+```
+
+### Include performance considerations:
+- Explain how schema changes might affect query performance
+- Recommend indexing strategies based on data patterns observed

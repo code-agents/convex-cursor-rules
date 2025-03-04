@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Convex Data Modeling Guide
+
+Analyzes data models and suggests best practices for Convex database design.
+
+### When to trigger this rule:
+- The user is designing a new data model
+- The user is refactoring existing data structures
+- The user is unsure about denormalization vs. normalization
+- The user mentions relationship modeling
+
+### What information to collect:
+- Current or proposed data models
+- Access patterns and query requirements
+- Data relationships and cardinality
+- Expected data volume and scalability needs
+
+### What to provide:
+- Suggest optimal data modeling patterns for Convex
+- Recommend normalization or denormalization strategies
+- Suggest improved ID relationships between tables
+- Identify opportunities for better modeling
+
+### Example:
+```typescript
+// Before (problematic data model):
+const messagesSchema = defineTable({
+  content: v.string(),
+  userId: v.id("users"),
+  channelId: v.id("channels"),
+  // Array of reactions - can grow unbounded
+  reactions: v.array(v.object({
+    userId: v.id("users"),
+    emoji: v.string(),
+    timestamp: v.number(),
+  })),
+});
+
+// After (improved data model):
+const messagesSchema = defineTable({
+  content: v.string(),
+  userId: v.id("users"),
+  channelId: v.id("channels"),
+  // No unbounded arrays - moved to separate table
+});
+
+const reactionsSchema = defineTable({
+  messageId: v.id("messages"),
+  userId: v.id("users"),
+  emoji: v.string(),
+  timestamp: v.number(),
+}).index("by_message", ["messageId"]);
+
+// Functions to work with the improved model:
+export const getMessageWithReactions = query({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    const reactions = await ctx.db
+      .query("reactions")
+      .withIndex("by_message", q => q.eq("messageId", args.messageId))
+      .collect();
+    
+    return { ...message, reactions };
+  }
+});
+```
+
+### Include advanced best practices:
+- Explain when to use embedded objects vs. separate tables
+- Suggest indexing strategies for common access patterns
+- Recommend pagination-friendly data structures
+- Identify anti-patterns specific to Convex
+- Suggest strategies for handling many-to-many relationships
+- Recommend approaches for time-series or historical data

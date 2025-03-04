@@ -1,0 +1,112 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Convex Authorization Pattern Optimizer
+
+Analyzes and improves authorization patterns in Convex applications.
+
+### When to trigger this rule:
+- The user is implementing access control
+- The user is working with auth-related code
+- The user mentions security concerns
+- The user is refactoring permission systems
+
+### What information to collect:
+- Current authorization implementation
+- Data model and relationships
+- Access patterns and user roles
+- Security requirements
+
+### What to provide:
+- Suggest optimized authorization patterns
+- Identify potential security issues
+- Recommend reusable authorization helper functions
+- Suggest role-based or attribute-based access control improvements
+
+### Example:
+```typescript
+// Before (repetitive, inconsistent auth checks):
+export const getUserData = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated");
+    }
+    
+    const user = await ctx.db.get(args.userId);
+    if (user.ownerId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+    
+    return user;
+  }
+});
+
+export const updateUserData = mutation({
+  args: { userId: v.id("users"), data: v.object({...}) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated");
+    }
+    
+    const user = await ctx.db.get(args.userId);
+    if (user.ownerId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+    
+    return await ctx.db.patch(args.userId, args.data);
+  }
+});
+
+// After (reusable auth helpers):
+// In a shared "auth.js" file:
+export async function getUserId(ctx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Unauthenticated");
+  }
+  return identity.subject;
+}
+
+export async function checkUserAccess(ctx, resourceId) {
+  const userId = await getUserId(ctx);
+  const resource = await ctx.db.get(resourceId);
+  
+  if (!resource) {
+    throw new Error("Resource not found");
+  }
+  
+  if (resource.ownerId !== userId) {
+    throw new Error("Unauthorized");
+  }
+  
+  return resource;
+}
+
+// In function files:
+export const getUserData = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await checkUserAccess(ctx, args.userId);
+  }
+});
+
+export const updateUserData = mutation({
+  args: { userId: v.id("users"), data: v.object({...}) },
+  handler: async (ctx, args) => {
+    await checkUserAccess(ctx, args.userId);
+    return await ctx.db.patch(args.userId, args.data);
+  }
+});
+```
+
+### Include advanced considerations:
+- Suggest role-based access control (RBAC) patterns
+- Recommend fine-grained permission models
+- Identify opportunities for row-level security
+- Suggest caching strategies for frequently accessed permissions
+- Recommend audit logging patterns for security-critical operations

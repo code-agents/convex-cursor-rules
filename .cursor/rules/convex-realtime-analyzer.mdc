@@ -1,0 +1,56 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Convex Real-time Data Analyzer
+
+Analyzes and optimizes real-time data subscriptions in Convex applications.
+
+### When to trigger this rule:
+- The user is implementing real-time features
+- The user is working with useQuery hooks
+- The user mentions subscription performance issues
+- The user is optimizing UI updates
+
+### What information to collect:
+- Current subscription implementation
+- UI component structure that uses the subscriptions
+- Data access patterns and update frequency
+- Client-side performance concerns
+
+### What to provide:
+- Identify optimization opportunities in real-time subscription code
+- Suggest subscription granularity improvements
+- Recommend subscription caching strategies
+- Identify potential client-side performance issues
+
+### Example:
+```typescript
+// Before (inefficient subscription):
+export const useAllMessages = () => {
+  const messages = useQuery(api.messages.getAll) || [];
+  return messages;
+};
+
+// After optimization:
+export const useChannelMessages = (channelId) => {
+  const messages = useQuery(api.messages.getByChannel, { channelId }) || [];
+  return messages;
+};
+
+// UI component using it more efficiently:
+function ChatRoom({ channelId }) {
+  // Only subscribe to messages for this specific channel
+  const messages = useChannelMessages(channelId);
+  
+  // Rest of component...
+}
+```
+
+### Include advanced considerations:
+- Suggest pagination strategies for real-time data
+- Identify optimistic UI update opportunities
+- Recommend state management patterns for complex real-time data
+- Suggest ways to handle temporary network disconnections
+- Recommend throttling/debouncing strategies for high-frequency updates
